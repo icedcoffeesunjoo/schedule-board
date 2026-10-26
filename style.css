@@ -121,6 +121,10 @@ body {
 }
 
 /* Buttons */
+[hidden] {
+  display: none !important;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -209,11 +213,13 @@ body {
 
 .assignee-input-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
-  max-width: 440px;
+  max-width: 600px;
 }
 
-.assignee-input-group input {
+.assignee-input-group input,
+.assignee-input-group select {
   flex: 1;
   background: var(--bg-input);
   border: 1px solid var(--border-color);
@@ -226,7 +232,12 @@ body {
   transition: all var(--transition-fast);
 }
 
-.assignee-input-group input:focus {
+.assignee-input-group select {
+  flex: 0 0 auto;
+}
+
+.assignee-input-group input:focus,
+.assignee-input-group select:focus {
   border-color: var(--apple-blue);
   box-shadow: 0 0 0 3px rgba(41, 151, 255, 0.25);
 }
@@ -510,6 +521,22 @@ body {
   flex: 2 1 240px;
 }
 
+.form-group.flex-full {
+  flex: 1 1 100%;
+}
+
+.form-group textarea,
+.memo-dialog textarea {
+  resize: vertical;
+  line-height: 1.5;
+  min-height: 44px;
+}
+
+.form-group textarea::placeholder,
+.memo-dialog textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
 .form-group.form-action {
   flex: 0 0 120px;
 }
@@ -521,7 +548,9 @@ body {
 }
 
 .form-group input,
-.form-group select {
+.form-group select,
+.form-group textarea,
+.memo-dialog textarea {
   background: var(--bg-input);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
@@ -534,7 +563,9 @@ body {
 }
 
 .form-group input:focus,
-.form-group select:focus {
+.form-group select:focus,
+.form-group textarea:focus,
+.memo-dialog textarea:focus {
   border-color: var(--apple-blue);
   box-shadow: 0 0 0 3px rgba(41, 151, 255, 0.25);
   background: rgba(55, 55, 62, 0.8);
@@ -689,7 +720,6 @@ select {
 
 .timeline-axis-dates {
   display: grid;
-  grid-template-columns: repeat(17, 1fr);
   position: relative;
 }
 
@@ -726,7 +756,26 @@ select {
   font-weight: 700;
 }
 
-/* Today Baseline Indicator (2026-10-25) */
+/* Timeline Panels (위·아래 2단) */
+.timeline-panel + .timeline-panel {
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border-color);
+}
+
+.timeline-panel-title {
+  margin-bottom: 30px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--apple-cyan);
+  font-variant-numeric: tabular-nums;
+}
+
+.timeline-panel-body {
+  position: relative;
+}
+
+/* Today Baseline Indicator */
 .today-line {
   position: absolute;
   top: 36px;
@@ -877,6 +926,61 @@ select {
 
 .table-responsive {
   overflow-x: auto;
+}
+
+.year-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.year-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  padding: 8px 14px;
+  color: var(--text-secondary);
+  font-size: 0.86rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.year-tab:hover {
+  color: var(--text-primary);
+}
+
+.year-tab.active {
+  color: var(--apple-blue);
+  border-bottom-color: var(--apple-blue);
+}
+
+.year-tab-count {
+  margin-left: 4px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-input);
+  color: var(--text-tertiary);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.year-tab.active .year-tab-count {
+  background: rgba(41, 151, 255, 0.18);
+  color: var(--apple-blue);
+}
+
+.schedule-table tbody tr.table-group-row td {
+  padding: 14px 12px 6px;
+  background: transparent;
+  border-bottom: 1px solid var(--border-color);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .schedule-table {
@@ -1063,6 +1167,8 @@ select {
   .form-card,
   .filter-toolbar,
   .btn-icon-danger,
+  .btn-memo,
+  .sync-status,
   .status-select {
     display: none !important;
   }
@@ -1091,4 +1197,123 @@ select {
   .timeline-scroll-wrapper {
     overflow: visible;
   }
+}
+
+/* ==========================================================================
+   Shared Mode · Memo · Timeline Groups
+   ========================================================================== */
+.sync-status {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 8px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-color);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.sync-status[data-state="online"] {
+  color: var(--status-success);
+  border-color: rgba(48, 209, 88, 0.35);
+  background: var(--status-success-bg);
+}
+
+.sync-status[data-state="saving"] {
+  color: var(--status-conflict);
+  border-color: rgba(255, 159, 10, 0.35);
+  background: var(--status-conflict-bg);
+}
+
+.sync-status[data-state="error"] {
+  color: var(--status-urgent);
+  border-color: rgba(255, 69, 58, 0.35);
+  background: var(--status-urgent-bg);
+}
+
+.timeline-group-header {
+  margin-top: 10px;
+  padding: 6px 4px 4px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.timeline-group-count {
+  margin-left: 6px;
+  font-weight: 500;
+  color: var(--text-tertiary);
+}
+
+.memo-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.memo-text {
+  flex: 1;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  max-height: 4.4em;
+  overflow-y: auto;
+}
+
+.memo-empty {
+  color: var(--text-tertiary);
+}
+
+.btn-memo {
+  background: transparent;
+  border: none;
+  font-size: 0.9rem;
+  padding: 2px 6px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  opacity: 0.6;
+  transition: all var(--transition-fast);
+}
+
+.btn-memo:hover {
+  opacity: 1;
+  background: var(--bg-input);
+}
+
+.memo-dialog {
+  width: min(520px, calc(100vw - 32px));
+  padding: 22px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: rgba(28, 28, 30, 0.97);
+  color: var(--text-primary);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.memo-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.memo-dialog-title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.memo-dialog textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.memo-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
 }

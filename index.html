@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>연구·교육 일정 자동 편성표</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📅</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,9 +14,13 @@
       <div class="header-content">
         <div>
           <h1 class="header-title">연구·교육 일정 자동 편성표</h1>
-          <p class="header-subtitle">프로젝트 및 교육과정 일정을 관리하고, 담당자 중복 및 마감 임박을 자동으로 감지합니다. (기준일: 2026-10-25)</p>
+          <p class="header-subtitle">프로젝트 및 교육과정 일정을 관리하고, 담당자 중복 및 마감 임박을 자동으로 감지합니다. (기준일: <span id="base-date-label"></span>)</p>
+          <div class="sync-status" id="sync-status" data-state="local" title="데이터 저장 위치">⚪ 로컬 모드 (이 브라우저에만 저장)</div>
         </div>
         <div class="header-actions">
+          <button id="btn-password" class="btn btn-secondary" type="button" title="공유 일정 편집 비밀번호를 입력하거나 변경합니다" hidden>
+            <span class="icon">🔑</span> 편집 비밀번호
+          </button>
           <button id="btn-export" class="btn btn-secondary" type="button" title="현재 일정 및 담당자 데이터를 JSON 파일로 다운로드합니다">
             <span class="icon">📤</span> 일정 내보내기
           </button>
@@ -58,7 +63,7 @@
       <div class="stat-card stat-urgent">
         <div class="stat-label">마감 임박 (D-3 이내)</div>
         <div class="stat-value" id="stat-urgent">0</div>
-        <div class="stat-sub">10/25 ~ 10/28 미완료</div>
+        <div class="stat-sub" id="urgent-range-label"></div>
       </div>
       <div class="stat-card stat-conflict">
         <div class="stat-label">담당자 충돌 경고</div>
@@ -77,7 +82,15 @@
       </div>
       <div class="assignee-manage-body">
         <div class="assignee-input-group">
-          <input type="text" id="new-assignee-name" placeholder="새 담당자 이름 (예: 강지원 연구원)" autocomplete="off">
+          <input type="text" id="new-assignee-name" placeholder="새 담당자 이름 (예: 강지원)" autocomplete="off">
+          <select id="new-assignee-degree" aria-label="과정">
+            <option value="박사수료">박사수료</option>
+            <option value="박사과정">박사과정</option>
+            <option value="석박통합과정수료">석박통합과정수료</option>
+            <option value="석사수료">석사수료</option>
+            <option value="석사과정" selected>석사과정</option>
+            <option value="">(과정 없음)</option>
+          </select>
           <button type="button" id="btn-add-assignee" class="btn btn-secondary">
             + 담당자 추가
           </button>
@@ -97,19 +110,23 @@
       <form id="schedule-form" class="schedule-form" novalidate>
         <div class="form-group flex-2">
           <label for="form-title">일정 / 과제명</label>
-          <input type="text" id="form-title" placeholder="예: 대학원생 연구방법론 특강" required autocomplete="off">
+          <input type="text" id="form-title" placeholder="예: 석사 학위논문 프로포절 발표" required autocomplete="off">
         </div>
         <div class="form-group flex-1">
           <label for="form-category">구분</label>
           <select id="form-category" required>
+            <option value="프로포절 발표">프로포절 발표</option>
+            <option value="요지 발표">요지 발표</option>
+            <option value="랩미팅 발표">랩미팅 발표</option>
+            <option value="논자시">논자시</option>
+            <option value="IRB 제출">IRB 제출</option>
             <option value="연구과제">연구과제</option>
-            <option value="교육기획">교육기획</option>
+            <option value="논문 투고">논문 투고</option>
             <option value="학술행사">학술행사</option>
-            <option value="인재개발">인재개발</option>
-            <option value="행정기획">행정기획</option>
-            <option value="교육운영">교육운영</option>
-            <option value="대외협력">대외협력</option>
-            <option value="연구윤리">연구윤리</option>
+            <option value="학회 참석">학회 참석</option>
+            <option value="졸업 계획">졸업 계획</option>
+            <option value="교육기획">교육기획</option>
+            <option value="대학원논문연구">대학원논문연구</option>
           </select>
         </div>
         <div class="form-group flex-1">
@@ -120,11 +137,11 @@
         </div>
         <div class="form-group flex-1">
           <label for="form-start">시작일</label>
-          <input type="date" id="form-start" value="2026-10-26" min="2026-10-01" max="2028-02-29" required>
+          <input type="date" id="form-start" required>
         </div>
         <div class="form-group flex-1">
           <label for="form-end">마감일</label>
-          <input type="date" id="form-end" value="2026-11-06" min="2026-10-01" max="2028-02-29" required>
+          <input type="date" id="form-end" required>
         </div>
         <div class="form-group flex-1">
           <label for="form-priority">우선순위</label>
@@ -133,6 +150,10 @@
             <option value="보통" selected>보통</option>
             <option value="낮음">낮음</option>
           </select>
+        </div>
+        <div class="form-group flex-full">
+          <label for="form-memo">메모 (선택)</label>
+          <textarea id="form-memo" rows="2" maxlength="2000" placeholder="예: 지도교수님 피드백 반영 필요, 참고 자료 링크 등"></textarea>
         </div>
         <div class="form-group form-action">
           <label>&nbsp;</label>
@@ -163,7 +184,7 @@
     <!-- 간트 타임라인 막대 차트 -->
     <section class="card timeline-card">
       <div class="timeline-header">
-        <h2 class="card-title">간트 타임라인 (2026.10 ~ 2028.02 · 월별)</h2>
+        <h2 class="card-title" id="timeline-title">간트 타임라인 (월별)</h2>
         <div class="timeline-legend">
           <span class="legend-item"><span class="legend-box bar-normal"></span> 일반</span>
           <span class="legend-item"><span class="legend-box bar-urgent"></span> 마감 임박</span>
@@ -173,7 +194,7 @@
       </div>
       <div class="timeline-scroll-wrapper">
         <div class="timeline-container" id="timeline-container">
-          <!-- JS로 동적 생성: 날짜 눈금 헤더, 오늘 기준선(10/25), 각 일정 가로 막대 행 -->
+          <!-- JS로 동적 생성: 날짜 눈금 헤더, 오늘 기준선, 각 일정 가로 막대 행 -->
         </div>
       </div>
     </section>
@@ -182,8 +203,9 @@
     <section class="card table-card">
       <div class="table-header-title">
         <h2 class="card-title">일정 상세 현황표</h2>
-        <span class="table-count-info" id="table-count-info">총 9건의 일정이 등록되어 있습니다.</span>
+        <span class="table-count-info" id="table-count-info"></span>
       </div>
+      <div class="year-tabs" id="year-tabs" role="tablist" aria-label="연도별 보기"></div>
       <div class="table-responsive">
         <table class="schedule-table" id="schedule-table">
           <thead>
@@ -196,6 +218,7 @@
               <th scope="col" style="width: 90px;">중요도</th>
               <th scope="col" style="width: 110px;">마감 기한</th>
               <th scope="col" style="width: 120px;">진행 상태</th>
+              <th scope="col" style="width: 220px;">메모</th>
               <th scope="col" style="width: 70px;">관리</th>
             </tr>
           </thead>
@@ -207,6 +230,19 @@
     </section>
   </div>
 
+  <!-- 메모 편집 창 -->
+  <dialog id="memo-dialog" class="memo-dialog">
+    <form method="dialog" id="memo-dialog-form">
+      <h3 class="memo-dialog-title" id="memo-dialog-title">메모 편집</h3>
+      <textarea id="memo-dialog-input" rows="6" maxlength="2000" placeholder="이 일정에 대한 메모를 입력하세요"></textarea>
+      <div class="memo-dialog-actions">
+        <button type="submit" value="cancel" class="btn btn-secondary">취소</button>
+        <button type="submit" value="save" class="btn btn-primary">저장</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
