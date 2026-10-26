@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>연구·교육 일정 자동 편성표</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- 헤더 영역 -->
+    <header class="app-header">
+      <div class="header-content">
+        <div>
+          <h1 class="header-title">연구·교육 일정 자동 편성표</h1>
+          <p class="header-subtitle">프로젝트 및 교육과정 일정을 관리하고, 담당자 중복 및 마감 임박을 자동으로 감지합니다. (기준일: 2026-10-25)</p>
+        </div>
+        <div class="header-actions">
+          <button id="btn-export" class="btn btn-secondary" type="button" title="현재 일정 및 담당자 데이터를 JSON 파일로 다운로드합니다">
+            <span class="icon">📤</span> 일정 내보내기
+          </button>
+          <button id="btn-import-trigger" class="btn btn-secondary" type="button" title="다른 연구원이 공유한 JSON 파일을 불러옵니다">
+            <span class="icon">📥</span> 일정 불러오기
+          </button>
+          <input type="file" id="file-import" accept=".json" style="display: none;">
+          <button id="btn-reset" class="btn btn-secondary" type="button" title="초기 기본 데이터로 되돌립니다">
+            <span class="icon">↺</span> 기본 데이터 복원
+          </button>
+          <button id="btn-print" class="btn btn-primary" type="button" title="편성표를 인쇄하거나 PDF로 저장합니다">
+            <span class="icon">🖨️</span> 인쇄 / PDF 출력
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 충돌 경고 배너 -->
+    <section id="conflict-alert-box" class="alert-box" aria-live="polite">
+      <div class="alert-header">
+        <span class="alert-icon">⚠️</span>
+        <strong id="conflict-alert-title">일정 충돌 감지 (0건):</strong>
+        <span id="conflict-alert-desc">동일 담당자의 기간 중복 업무가 발견되었습니다.</span>
+      </div>
+      <ul id="conflict-list" class="conflict-list"></ul>
+    </section>
+
+    <!-- 요약 통계 카드 -->
+    <section class="stat-grid" aria-label="일정 현황 요약">
+      <div class="stat-card">
+        <div class="stat-label">전체 등록 일정</div>
+        <div class="stat-value" id="stat-total">0</div>
+        <div class="stat-sub">편성된 전체 과제</div>
+      </div>
+      <div class="stat-card stat-progress">
+        <div class="stat-label">진행 중 업무</div>
+        <div class="stat-value" id="stat-progress">0</div>
+        <div class="stat-sub">현재 수행 중인 일정</div>
+      </div>
+      <div class="stat-card stat-urgent">
+        <div class="stat-label">마감 임박 (D-3 이내)</div>
+        <div class="stat-value" id="stat-urgent">0</div>
+        <div class="stat-sub">10/25 ~ 10/28 미완료</div>
+      </div>
+      <div class="stat-card stat-conflict">
+        <div class="stat-label">담당자 충돌 경고</div>
+        <div class="stat-value" id="stat-conflict">0</div>
+        <div class="stat-sub">기간 겹침 일정 건수</div>
+      </div>
+    </section>
+
+    <!-- 담당자 관리 섹션 -->
+    <section class="card assignee-manage-card">
+      <div class="assignee-manage-header">
+        <h2 class="card-title">
+          <span class="icon">👥</span> 담당자 풀(Pool) 관리
+          <span class="form-help">(담당자를 추가하거나 삭제하여 일정에 배정할 수 있습니다)</span>
+        </h2>
+      </div>
+      <div class="assignee-manage-body">
+        <div class="assignee-input-group">
+          <input type="text" id="new-assignee-name" placeholder="새 담당자 이름 (예: 강지원 연구원)" autocomplete="off">
+          <button type="button" id="btn-add-assignee" class="btn btn-secondary">
+            + 담당자 추가
+          </button>
+        </div>
+        <div class="assignee-tag-container" id="assignee-tag-container">
+          <!-- JS로 동적 렌더링: 담당자 태그 및 삭제 버튼 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 토스트 알림 -->
+    <div id="toast-message" class="toast-message" aria-live="polite"></div>
+
+    <!-- 새 일정 등록 폼 -->
+    <section class="card form-card">
+      <h2 class="card-title">+ 새 일정 등록 <span class="form-help">(입력 즉시 타임라인 및 상세 목록에 반영됩니다)</span></h2>
+      <form id="schedule-form" class="schedule-form" novalidate>
+        <div class="form-group flex-2">
+          <label for="form-title">일정 / 과제명</label>
+          <input type="text" id="form-title" placeholder="예: 대학원생 연구방법론 특강" required autocomplete="off">
+        </div>
+        <div class="form-group flex-1">
+          <label for="form-category">구분</label>
+          <select id="form-category" required>
+            <option value="연구과제">연구과제</option>
+            <option value="교육기획">교육기획</option>
+            <option value="학술행사">학술행사</option>
+            <option value="인재개발">인재개발</option>
+            <option value="행정기획">행정기획</option>
+            <option value="교육운영">교육운영</option>
+            <option value="대외협력">대외협력</option>
+            <option value="연구윤리">연구윤리</option>
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="form-assignee">담당자 선택</label>
+          <select id="form-assignee" required>
+            <!-- JS로 담당자 목록 동적 렌더링 -->
+          </select>
+        </div>
+        <div class="form-group flex-1">
+          <label for="form-start">시작일</label>
+          <input type="date" id="form-start" value="2026-10-26" min="2026-10-01" max="2028-02-29" required>
+        </div>
+        <div class="form-group flex-1">
+          <label for="form-end">마감일</label>
+          <input type="date" id="form-end" value="2026-11-06" min="2026-10-01" max="2028-02-29" required>
+        </div>
+        <div class="form-group flex-1">
+          <label for="form-priority">우선순위</label>
+          <select id="form-priority">
+            <option value="높음">높음</option>
+            <option value="보통" selected>보통</option>
+            <option value="낮음">낮음</option>
+          </select>
+        </div>
+        <div class="form-group form-action">
+          <label>&nbsp;</label>
+          <button type="submit" id="btn-submit" class="btn btn-action">일정 추가</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 필터 및 검색 컨트롤 -->
+    <section class="filter-toolbar">
+      <div class="filter-group">
+        <label for="filter-assignee">담당자 필터:</label>
+        <select id="filter-assignee">
+          <option value="ALL">담당자 전체</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="filter-status">상태 필터:</label>
+        <select id="filter-status">
+          <option value="ALL">상태 전체</option>
+          <option value="진행중">진행중</option>
+          <option value="대기">대기</option>
+          <option value="완료">완료</option>
+        </select>
+      </div>
+    </section>
+
+    <!-- 간트 타임라인 막대 차트 -->
+    <section class="card timeline-card">
+      <div class="timeline-header">
+        <h2 class="card-title">간트 타임라인 (2026.10 ~ 2028.02 · 월별)</h2>
+        <div class="timeline-legend">
+          <span class="legend-item"><span class="legend-box bar-normal"></span> 일반</span>
+          <span class="legend-item"><span class="legend-box bar-urgent"></span> 마감 임박</span>
+          <span class="legend-item"><span class="legend-box bar-conflict"></span> 충돌 경고</span>
+          <span class="legend-item"><span class="legend-box bar-done"></span> 완료</span>
+        </div>
+      </div>
+      <div class="timeline-scroll-wrapper">
+        <div class="timeline-container" id="timeline-container">
+          <!-- JS로 동적 생성: 날짜 눈금 헤더, 오늘 기준선(10/25), 각 일정 가로 막대 행 -->
+        </div>
+      </div>
+    </section>
+
+    <!-- 일정 상세 목록 테이블 -->
+    <section class="card table-card">
+      <div class="table-header-title">
+        <h2 class="card-title">일정 상세 현황표</h2>
+        <span class="table-count-info" id="table-count-info">총 9건의 일정이 등록되어 있습니다.</span>
+      </div>
+      <div class="table-responsive">
+        <table class="schedule-table" id="schedule-table">
+          <thead>
+            <tr>
+              <th scope="col" style="width: 80px;">ID</th>
+              <th scope="col">일정 / 과제명</th>
+              <th scope="col" style="width: 100px;">구분</th>
+              <th scope="col" style="width: 130px;">담당자</th>
+              <th scope="col" style="width: 210px;">기간</th>
+              <th scope="col" style="width: 90px;">중요도</th>
+              <th scope="col" style="width: 110px;">마감 기한</th>
+              <th scope="col" style="width: 120px;">진행 상태</th>
+              <th scope="col" style="width: 70px;">관리</th>
+            </tr>
+          </thead>
+          <tbody id="schedule-tbody">
+            <!-- JS로 렌더링 -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
